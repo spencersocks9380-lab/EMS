@@ -1,15 +1,33 @@
-# EMS Dashboard
+# EMS Campus Console
 
-A simple employee management dashboard built with Next.js, Saas UI, Chakra UI, and TypeScript.
+V1 event management system built on top of the cloned UI starter and adapted to your clarified workflow:
+
+- student login with `registration number + phone number`
+- hashed and salted student credentials
+- local SQL-backed seed data using Node's built-in `node:sqlite`
+- event registration for individual and team events
+- admin event creation with team-size control
+- judge score drafts that must be admin-validated before lock
+
+## Seeded Student Login
+
+- Name: `Nikchaya Lamsal`
+- Registration Number: `202300302`
+- Phone Number / V1 Password: `8436715819`
+
+## Routes
+
+- `/` student portal and public leaderboard
+- `/admin` admin event setup and score validation console
 
 ## Tech Stack
 
 - Next.js 16
 - React 19
-- Saas UI
-- Chakra UI
+- Tailwind CSS 4
 - TypeScript
-- Tailwind CSS
+- Node.js 22
+- SQLite via `node:sqlite`
 
 ## Getting Started
 
@@ -25,13 +43,7 @@ Run the development server:
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-On Windows PowerShell, if script execution is blocked, use:
-
-```bash
-npm.cmd run dev
-```
+Open `http://localhost:3000`.
 
 ## Available Scripts
 
@@ -46,24 +58,20 @@ npm run lint
 
 ```text
 app/
-  globals.css      Global styles
-  layout.tsx       Root app layout and metadata
-  page.tsx         EMS dashboard page
-  providers.tsx    Saas UI provider
-public/
-  globe.svg        Header logo asset
+  actions.ts        Server actions for login, registration, admin validation
+  admin/page.tsx    Admin console
+  globals.css       Tailwind and visual theme
+  layout.tsx        Root layout
+  page.tsx          Student portal
+lib/
+  auth.ts           Signed session helper
+  db.ts             SQLite schema, seed data, query helpers
+data/
+  ems.sqlite        Generated local database file on first run
 ```
 
-## Build
+## Notes
 
-Create a production build:
-
-```bash
-npm run build
-```
-
-If PowerShell blocks `npm`, run:
-
-```bash
-npm.cmd run build
-```
+- The SQLite layer uses Node's experimental `node:sqlite` module in Node 22.
+- This V1 keeps the login flow intentionally simple to match your college workflow, but the credentials are not stored in plain text.
+- New events created from the admin console automatically get a default five-metric rubric and a starter advancement rule.
