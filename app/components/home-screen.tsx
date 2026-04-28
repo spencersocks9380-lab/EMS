@@ -24,6 +24,7 @@ import {
   StatLabel,
   StatNumber,
   Text,
+  Textarea,
 } from "@chakra-ui/react";
 import {
   AppShell,
@@ -43,14 +44,21 @@ import {
   StructuredListCell,
   StructuredListItem,
 } from "@saas-ui/react";
-import { applyToEvent, loginStudent, logoutStudent } from "@/app/actions";
+import {
+  applyToEvent,
+  enterSubEvent,
+  loginParticipant,
+  logoutSession,
+} from "@/app/actions";
 import type {
   DashboardStat,
   EventCard,
   LeaderboardEntry,
+  ParticipantSubEvent,
   StudentApplication,
   StudentProfile,
   StudentScore,
+  TeamMember,
 } from "@/lib/db";
 
 type HomeScreenProps = {
@@ -61,6 +69,7 @@ type HomeScreenProps = {
     leaderboard: LeaderboardEntry[];
     studentApplications: StudentApplication[];
     studentScores: StudentScore[];
+    subEvents: ParticipantSubEvent[];
   };
   error?: string;
   message?: string;
@@ -97,13 +106,23 @@ function statusColor(status: string) {
   }
 }
 
+function formatTeamMembers(members: TeamMember[]) {
+  return members
+    .map((member) =>
+      member.isCaptain ? `${member.name} (Captain)` : member.name,
+    )
+    .join(", ");
+}
+
 function renderBanner(message: string | undefined, error: string | undefined) {
   if (message) {
     const labels: Record<string, string> = {
-      welcome: "Welcome back. Your portal is ready.",
+      welcome: "Welcome back. Your participant panel is ready.",
       applied: "Your registration has been submitted.",
       waitlisted: "This event is full right now, so your registration was waitlisted.",
       "signed-out": "You have been signed out.",
+      "sub-event-entered":
+        "Your team has been entered into the selected sub-event.",
     };
 
     if (labels[message]) {
@@ -122,11 +141,19 @@ function renderBanner(message: string | undefined, error: string | undefined) {
   if (error) {
     const labels: Record<string, string> = {
       "invalid-login": "The registration number or password was incorrect.",
-      "login-required": "Sign in before registering for an event.",
+      "participant-access-required":
+        "Sign in as a participant before using participant features.",
       "already-applied": "You already have an active registration for this event.",
       "schedule-conflict": "This event overlaps with one of your current registrations.",
       "registration-failed": "The registration could not be completed.",
       "missing-record": "The selected record could not be found.",
+      "team-size-exceeded":
+        "Your team roster is larger than the team size configured for this event.",
+      "sub-event-not-available":
+        "This sub-event is only available to approved team entries.",
+      "already-entered-sub-event":
+        "Your team has already entered this sub-event.",
+      "sub-event-full": "This sub-event has already reached its team capacity.",
     };
 
     return (
@@ -155,7 +182,7 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
           <NavbarBrand>
             <HStack spacing="3">
               <Image src="/globe.svg" alt="EMS" boxSize="28px" />
-              <Heading size="md">EMS</Heading>
+              <Heading size="md">EMS Participant</Heading>
             </HStack>
           </NavbarBrand>
           <NavbarContent justifyContent="end" spacing="4">
@@ -163,6 +190,11 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
               <Box display={{ base: "none", lg: "block" }} w="260px">
                 <SearchInput placeholder="Search events" size="sm" />
               </Box>
+            </NavbarItem>
+            <NavbarItem>
+              <Button as={NextLink} href="/judge" size="sm" variant="outline">
+                Judge panel
+              </Button>
             </NavbarItem>
             <NavbarItem>
               <Button as={NextLink} href="/admin" size="sm" variant="outline">
@@ -198,36 +230,36 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
                     textTransform="uppercase"
                     letterSpacing="widest"
                   >
-                    Event Portal
+                    Participant Panel
                   </Badge>
                   <Box>
-                    <Heading size="2xl">Discover and register for campus events.</Heading>
+                    <Heading size="2xl">Register teams, track scores, and enter sub-events.</Heading>
                     <Text mt="4" color="gray.600" maxW="2xl">
-                      Browse upcoming events, sign up as an individual or team, and
-                      check your latest results from one place.
+                      Participants can manage event registrations, keep team rosters
+                      visible, and confirm which team members are entering each sub-event.
                     </Text>
                   </Box>
                   <HStack spacing="3" flexWrap="wrap">
                     <Button as="a" href="#events" colorScheme="teal">
                       Browse events
                     </Button>
-                    <Button as={NextLink} href="/admin" variant="outline">
-                      Open admin console
+                    <Button as="a" href="#sub-events" variant="outline">
+                      View sub-events
                     </Button>
                   </HStack>
                 </Stack>
               </CardBody>
             </Card>
 
-            <Card borderRadius="2xl" boxShadow="xl" bg="whiteAlpha.950" id="portal">
+            <Card borderRadius="2xl" boxShadow="xl" bg="whiteAlpha.950" id="participant-panel">
               <CardHeader>
                 <Heading size="md">
-                  {data.student ? "Student account" : "Student login"}
+                  {data.student ? "Participant account" : "Participant login"}
                 </Heading>
                 <Text mt="2" color="gray.500">
                   {data.student
-                    ? "Your current profile and access are shown below."
-                    : "Sign in with your registration number and password to register for events."}
+                    ? "Your current profile and panel access are shown below."
+                    : "Sign in with your registration number and password to manage registrations."}
                 </Text>
               </CardHeader>
               <CardBody pt="0">
@@ -242,14 +274,14 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
                       <Property label="Semester" value={data.student.semester} />
                       <Property label="Email" value={data.student.email} />
                     </PropertyList>
-                    <form action={logoutStudent}>
+                    <form action={logoutSession}>
                       <Button type="submit" variant="outline" w="full">
                         Sign out
                       </Button>
                     </form>
                   </Stack>
                 ) : (
-                  <form action={loginStudent} id="login">
+                  <form action={loginParticipant} id="participant-login">
                     <Stack spacing="4">
                       <FormControl isRequired>
                         <FormLabel>Registration number</FormLabel>
@@ -296,7 +328,7 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
               <CardHeader>
                 <Heading size="md">Leaderboard</Heading>
                 <Text mt="2" color="gray.500">
-                  Recent standings from completed scoring.
+                  Recent standings from validated and locked scoring.
                 </Text>
               </CardHeader>
               <CardBody pt="0">
@@ -333,12 +365,12 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
             <Card borderRadius="2xl" boxShadow="lg">
               <CardHeader>
                 <Heading size="md">
-                  {data.student ? "Your activity" : "Student portal"}
+                  {data.student ? "Your activity" : "Participant access"}
                 </Heading>
                 <Text mt="2" color="gray.500">
                   {data.student
-                    ? "Your latest registrations and results."
-                    : "Sign in to view your registrations and scores."}
+                    ? "Your registrations, rosters, and latest scores."
+                    : "Sign in to view your applications, roster details, and results."}
                 </Text>
               </CardHeader>
               <CardBody pt="0">
@@ -359,6 +391,11 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
                                 <Text color="gray.500" fontSize="sm">
                                   {formatDate(application.appliedAt)}
                                 </Text>
+                                {application.teamName ? (
+                                  <Text color="gray.500" fontSize="sm">
+                                    {application.teamName}: {formatTeamMembers(application.teamMembers)}
+                                  </Text>
+                                ) : null}
                               </Box>
                             </StructuredListCell>
                             <StructuredListCell flex="0">
@@ -381,7 +418,7 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
                               <Box>
                                 <Text fontWeight="semibold">{score.eventName}</Text>
                                 <Text color="gray.500" fontSize="sm">
-                                  {score.roundName}
+                                  {score.roundName} by {score.judgeName}
                                 </Text>
                               </Box>
                             </StructuredListCell>
@@ -402,12 +439,90 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
                   </SimpleGrid>
                 ) : (
                   <Text color="gray.600">
-                    Sign in to manage your event registrations and view your scores.
+                    Sign in to manage registrations, confirm team rosters, and view scores.
                   </Text>
                 )}
               </CardBody>
             </Card>
           </SimpleGrid>
+
+          <Card borderRadius="2xl" boxShadow="xl" id="sub-events">
+            <CardHeader>
+              <Flex
+                align={{ base: "start", lg: "center" }}
+                direction={{ base: "column", lg: "row" }}
+                gap="3"
+                justify="space-between"
+              >
+                <Box>
+                  <Heading size="lg">Sub-event entries</Heading>
+                  <Text mt="2" color="gray.500">
+                    Approved team registrations can enter sub-events with full roster visibility.
+                  </Text>
+                </Box>
+              </Flex>
+            </CardHeader>
+            <CardBody pt="0">
+              {data.student ? (
+                data.subEvents.length > 0 ? (
+                  <SimpleGrid columns={{ base: 1, xl: 2 }} spacing="5">
+                    {data.subEvents.map((subEvent) => (
+                      <Card key={subEvent.id} borderRadius="xl" variant="outline">
+                        <CardBody>
+                          <Stack spacing="4">
+                            <Flex align="start" justify="space-between" gap="3">
+                              <Box>
+                                <Heading size="sm">{subEvent.name}</Heading>
+                                <Text mt="1" color="gray.500" fontSize="sm">
+                                  {subEvent.parentEventName}
+                                </Text>
+                              </Box>
+                              <Badge colorScheme={statusColor(subEvent.status)}>
+                                {subEvent.status}
+                              </Badge>
+                            </Flex>
+                            <PropertyList>
+                              <Property label="Starts" value={formatDate(subEvent.startAt)} />
+                              <Property label="Ends" value={formatDate(subEvent.endAt)} />
+                              <Property
+                                label="Capacity"
+                                value={`${subEvent.currentTeams}/${subEvent.maxTeams} teams`}
+                              />
+                              <Property label="Team" value={subEvent.teamName} />
+                              <Property
+                                label="Participants"
+                                value={formatTeamMembers(subEvent.teamMembers)}
+                              />
+                            </PropertyList>
+                            {subEvent.hasEntered ? (
+                              <Badge alignSelf="flex-start" colorScheme="green">
+                                Entered
+                              </Badge>
+                            ) : (
+                              <form action={enterSubEvent}>
+                                <input type="hidden" name="subEventId" value={subEvent.id} />
+                                <Button type="submit" colorScheme="teal">
+                                  Enter sub-event
+                                </Button>
+                              </form>
+                            )}
+                          </Stack>
+                        </CardBody>
+                      </Card>
+                    ))}
+                  </SimpleGrid>
+                ) : (
+                  <Text color="gray.600">
+                    No approved team applications are ready for sub-event entry yet.
+                  </Text>
+                )
+              ) : (
+                <Text color="gray.600">
+                  Sign in to enter your team into available sub-events.
+                </Text>
+              )}
+            </CardBody>
+          </Card>
 
           <Card borderRadius="2xl" boxShadow="xl" id="events">
             <CardHeader>
@@ -420,7 +535,7 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
                 <Box>
                   <Heading size="lg">Open events</Heading>
                   <Text mt="2" color="gray.500">
-                    Choose an event and register when spots are available.
+                    Choose an event and register as an individual or a team.
                   </Text>
                 </Box>
               </Flex>
@@ -457,10 +572,7 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
                         <PropertyList>
                           <Property label="Starts" value={formatDate(event.startAt)} />
                           <Property label="Ends" value={formatDate(event.endAt)} />
-                          <Property
-                            label="Judges"
-                            value={event.judges.join(", ")}
-                          />
+                          <Property label="Judges" value={event.judges.join(", ")} />
                         </PropertyList>
 
                         <Divider />
@@ -478,10 +590,17 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
                               <Stack spacing="3">
                                 <input type="hidden" name="eventId" value={event.id} />
                                 {event.eventType === "team" ? (
-                                  <Input
-                                    name="teamName"
-                                    placeholder="Team name"
-                                  />
+                                  <>
+                                    <Input
+                                      name="teamName"
+                                      placeholder="Team name"
+                                    />
+                                    <Textarea
+                                      name="teamMembers"
+                                      rows={4}
+                                      placeholder="List teammate names, one per line or comma-separated"
+                                    />
+                                  </>
                                 ) : null}
                                 <Button type="submit" colorScheme="teal">
                                   Register
@@ -490,7 +609,7 @@ export function HomeScreen({ data, error, message }: HomeScreenProps) {
                             </form>
                           )
                         ) : (
-                          <Button as="a" href="#login" variant="outline">
+                          <Button as="a" href="#participant-login" variant="outline">
                             Sign in to register
                           </Button>
                         )}

@@ -2,22 +2,32 @@
 
 V1 event management system built on top of the cloned UI starter and adapted to your clarified workflow:
 
-- student login with `registration number + phone number`
-- hashed and salted student credentials
+- participant login with `registration number + phone number`
+- judge login with `username + access code`
+- hashed and salted participant and judge credentials
 - local SQL-backed seed data using Node's built-in `node:sqlite`
 - event registration for individual and team events
+- team roster capture for team registrations
+- sub-event entry tracking for approved teams
 - admin event creation with team-size control
 - judge score drafts that must be admin-validated before lock
 
-## Seeded Student Login
+## Seeded Participant Login
 
 - Name: `Nikchaya Lamsal`
 - Registration Number: `202300302`
 - Phone Number / V1 Password: `8436715819`
 
+## Seeded Judge Logins
+
+- `sandeep.judge` / `JUDGE1001`
+- `aastha.judge` / `JUDGE1002`
+- `prabin.judge` / `JUDGE1003`
+
 ## Routes
 
-- `/` student portal and public leaderboard
+- `/` participant panel and public leaderboard
+- `/judge` judge scoring and roster panel
 - `/admin` admin event setup and score validation console
 
 ## Tech Stack
@@ -58,11 +68,12 @@ npm run lint
 
 ```text
 app/
-  actions.ts        Server actions for login, registration, admin validation
+  actions.ts        Server actions for auth, registration, sub-events, and scoring
   admin/page.tsx    Admin console
+  judge/page.tsx    Judge console
   globals.css       Tailwind and visual theme
   layout.tsx        Root layout
-  page.tsx          Student portal
+  page.tsx          Participant panel
 lib/
   auth.ts           Signed session helper
   db.ts             SQLite schema, seed data, query helpers

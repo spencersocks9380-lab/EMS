@@ -159,7 +159,12 @@ export function AdminScreen({ data, error, message }: AdminScreenProps) {
             </NavbarItem>
             <NavbarItem>
               <Button as={NextLink} href="/" size="sm" variant="outline">
-                Student portal
+                Participant panel
+              </Button>
+            </NavbarItem>
+            <NavbarItem>
+              <Button as={NextLink} href="/judge" size="sm" variant="outline">
+                Judge panel
               </Button>
             </NavbarItem>
           </NavbarContent>
@@ -196,7 +201,7 @@ export function AdminScreen({ data, error, message }: AdminScreenProps) {
                   </Text>
                 </Box>
                 <Button as={NextLink} href="/" variant="outline">
-                  Open student portal
+                  Open participant panel
                 </Button>
               </Flex>
             </CardBody>
